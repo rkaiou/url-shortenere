@@ -64,3 +64,35 @@ class LinkResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+# Бизнес-логика
+def generate_code(length: int = 6) -> str:
+    chars = string.ascii_letters + string.digits
+    return "".join(random.choices(chars, k=length))
+
+
+def create_link(db: Session, data: LinkCreate) -> Link:
+    # Кастомный или случайный код
+    if data.custom_code and data.custom_code.strip():
+        code = data.custom_code.strip()
+        if db.query(Link).filter(Link.short_code == code).first():
+            raise ValueError(f"Код '{code}' уже занят")
+    else:
+        code = generate_code()
+        while db.query(Link).filter(Link.short_code == code).first():
+            code = generate_code()
+
+    # TTL
+    expires = None
+    if data.ttl_hours and data.ttl_hours > 0:
+        expires = datetime.utcnow() + timedelta(hours=data.ttl_hours)
+
+    link = Link(original_url=data.original_url, short_code=code, expires_at=expires)
+    db.add(link)
+    db.commit()
+    db.refresh(link)
+    return link
+
+
+def is_expired(link: Link) -> bool:
+    return bool(link.expires_at and link.expires_at < datetime.utcnow())

@@ -96,3 +96,99 @@ def create_link(db: Session, data: LinkCreate) -> Link:
 
 def is_expired(link: Link) -> bool:
     return bool(link.expires_at and link.expires_at < datetime.utcnow())
+
+# FastApi
+
+app = FastAPI(title="URL Shortener", version="1.0.0")
+templates = Jinja2Templates(directory="templates")
+
+
+# Web
+
+@app.get("/", response_class=HTMLResponse)
+def home(request: Request, db: Session = Depends(get_db)):
+    links = db.query(Link).order_by(Link.created_at.desc()).all()
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "links": links,
+    })
+
+
+@app.post("/shorten", response_class=HTMLResponse)
+def shorten(
+    request: Request,
+    original_url: str = Form(...),
+    custom_code: Optional[str] = Form(""),
+    ttl_hours: Optional[str] = Form(""),
+    db: Session = Depends(get_db),
+):
+    data = LinkCreate(
+        original_url=original_url,
+        custom_code=custom_code if custom_code and custom_code.strip() else None,
+        ttl_hours=int(ttl_hours) if ttl_hours and ttl_hours.strip() else None,
+    )
+
+    error = None
+    success = None
+
+    try:
+        link = create_link(db, data)
+        success = f"{request.base_url}{link.short_code}"
+    except ValueError as e:
+        error = str(e)
+
+    links = db.query(Link).order_by(Link.created_at.desc()).all()
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "links": links,
+        "success": success,
+        "error": error,
+    })
+
+
+@app.get("/stats/{short_code}", response_class=HTMLResponse)
+def stats_page(short_code: str, request: Request, db: Session = Depends(get_db)):
+    link = db.query(Link).filter(Link.short_code == short_code).first()
+    if not link:
+        raise HTTPException(404, "Ссылка не найдена")
+    return templates.TemplateResponse("stats.html", {
+        "request": request,
+        "link": link,
+        "short_url": f"{request.base_url}{link.short_code}",
+        "is_expired": is_expired(link),
+    })
+
+
+# Api
+
+@app.post("/api/links", response_model=LinkResponse)
+def api_create(data: LinkCreate, request: Request, db: Session = Depends(get_db)):
+    try:
+        link = create_link(db, data)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return LinkResponse(
+        id=link.id,
+        original_url=link.original_url,
+        short_code=link.short_code,
+        short_url=f"{request.base_url}{link.short_code}",
+        created_at=link.created_at,
+        expires_at=link.expires_at,
+        click_count=link.click_count,
+        is_active=link.is_active,
+    )
+
+
+@app.get("/api/links")
+def api_list(db: Session = Depends(get_db)):
+    return db.query(Link).order_by(Link.created_at.desc()).all()
+
+
+@app.delete("/api/links/{short_code}")
+def api_delete(short_code: str, db: Session = Depends(get_db)):
+    link = db.query(Link).filter(Link.short_code == short_code).first()
+    if not link:
+        raise HTTPException(404, "Ссылка не найдена")
+    db.delete(link)
+    db.commit()
+    return {"message": "Удалено"}

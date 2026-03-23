@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Статистика — {{ link.short_code }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+          rel="stylesheet">
+    <style>
+        body { background: #f5f7fa; }
+        .card { border: none; border-radius: 12px; }
+        .big-count { font-size: 4rem; font-weight: 700; color: #4f46e5; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-dark mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="/">🔗 URL Shortener</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+
+            <a href="/" class="btn btn-outline-secondary mb-3">← Назад</a>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">📊 <code class="text-warning">{{ link.short_code }}</code></h5>
+                </div>
+                <div class="card-body text-center">
+
+                    <div class="big-count my-3">{{ link.click_count }}</div>
+                    <p class="text-muted">переходов</p>
+                    <hr>
+
+                    <table class="table table-borderless text-start">
+                        <tr>
+                            <th class="text-muted">Короткая ссылка</th>
+                            <td><a href="{{ short_url }}" target="_blank">{{ short_url }}</a></td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Оригинал</th>
+                            <td class="text-break">
+                                <a href="{{ link.original_url }}" target="_blank">
+                                    {{ link.original_url }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Создана</th>
+                            <td>{{ link.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Истекает</th>
+                            <td>
+                                {% if link.expires_at %}
+                                    {{ link.expires_at.strftime('%d.%m.%Y %H:%M') }}
+                                    {% if is_expired %}
+                                        <span class="badge bg-danger">Истекла</span>
+                                    {% endif %}
+                                {% else %}
+                                    ∞ Бессрочно
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Последний клик</th>
+                            <td>
+                                {% if link.last_accessed %}
+                                    {{ link.last_accessed.strftime('%d.%m.%Y %H:%M') }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Статус</th>
+                            <td>
+                                {% if is_expired %}
+                                    <span class="badge bg-danger">Истекла</span>
+                                {% elif link.is_active %}
+                                    <span class="badge bg-success">Активна</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Отключена</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

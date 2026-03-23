@@ -192,3 +192,28 @@ def api_delete(short_code: str, db: Session = Depends(get_db)):
     db.delete(link)
     db.commit()
     return {"message": "Удалено"}
+
+# Редирект
+@app.get("/{short_code}")
+def redirect(short_code: str, db: Session = Depends(get_db)):
+    link = db.query(Link).filter(Link.short_code == short_code).first()
+
+    if not link:
+        raise HTTPException(404, "Ссылка не найдена")
+    if is_expired(link):
+        raise HTTPException(410, "Срок ссылки истёк")
+    if not link.is_active:
+        raise HTTPException(410, "Ссылка отключена")
+
+    link.click_count += 1
+    link.last_accessed = datetime.utcnow()
+    db.commit()
+
+    return RedirectResponse(url=link.original_url, status_code=307)
+
+
+# Запуск
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=5000, reload=True)

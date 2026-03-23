@@ -43,3 +43,24 @@ class Link(Base):
 
 # Создание таблиц
 Base.metadata.create_all(bind=engine)
+
+# Pydantic схемы
+
+class LinkCreate(BaseModel):
+    original_url: str
+    custom_code: Optional[str] = None
+    ttl_hours: Optional[int] = None
+
+
+class LinkResponse(BaseModel):
+    id: int
+    original_url: str
+    short_code: str
+    short_url: str
+    created_at: datetime
+    expires_at: Optional[datetime]
+    click_count: int
+    is_active: bool
+
+    class Config:
+        from_attributes = True
